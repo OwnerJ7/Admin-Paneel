@@ -3,7 +3,7 @@
 	<head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Admin Panel — Admin</title>
+	<title>NexusPanel — Admin</title>
 	<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 	<style>
@@ -129,8 +129,8 @@ body{font-family:'Space Grotesk',sans-serif;background:var(--bg0);color:var(--t1
 																																															<div class="lgl"></div>
 																																															<div class="lc">
 																																															<div class="ll">
-																																															<div class="lm">A</div>
-																																															<h1>Admin Panel</h1>
+																																															<div class="lm">N</div>
+																																															<h1>NexusPanel</h1>
 																																															<p>Introduce tus credenciales de acceso</p>
 																																															</div>
 																																															<div class="lf">
@@ -152,7 +152,7 @@ body{font-family:'Space Grotesk',sans-serif;background:var(--bg0);color:var(--t1
 																																																<header class="tb">
 																																																<div class="tbl">
 																																																<div class="tlo">N</div>
-																																																<div class="tbr">Admin Panel <span>/ Session 1</span></div>
+																																																<div class="tbr">NexusPanel <span>/ Session 1</span></div>
 																																																</div>
 																																																<div class="tbrt">
 																																																<div class="tst"><div class="sd"></div><span>En linea</span></div>
@@ -178,8 +178,9 @@ body{font-family:'Space Grotesk',sans-serif;background:var(--bg0);color:var(--t1
 																																																// ============================================================
 																																																//   CONFIGURACION — Cambia esta URL para cambiar el juego
 																																																// ============================================================
-																																																var GAME_URL = "84054283042933"; // Recomendación: Pon solo el ID numérico para evitar fallos de URL
+																																																var GAME_URL = "https://www.roblox.com/es/games/84054283042933/Ritmo-Latino";
 																																																// ============================================================ do
+																																																
 
 																																																var PASS = "Pass1";
 
@@ -188,14 +189,15 @@ body{font-family:'Space Grotesk',sans-serif;background:var(--bg0);color:var(--t1
 																																																	function fmtD(s){if(!s)return'—';var d=new Date(s);return isNaN(d)?'—':d.toLocaleDateString('es-ES',{year:'numeric',month:'short',day:'numeric'})}
 																																																		function exId(u){
 																																																			if(!u) return null;
+
 																																																			u = u.trim();
 
-																																																			// Si ya es solo un número, lo devuelve directamente
-																																																			if(/^\d+$/.test(u)) return u;
+																																																			// detect URL /es/games/ID/anything
+																																																			var m = u.match(/roblox\.com\/.*games\/(\d+)/i);
+																																																			if(m) return m[1];
 
-																																																				// Captura el ID sin importar lo que haya antes o después de /games/
-																																																				var m = u.match(/games\/(\d+)/i);
-																																																				if(m) return m[1];
+																																																				// direct ID
+																																																				if(/^\d+$/.test(u)) return u;
 
 																																																					return null;
 																																																					}
@@ -212,8 +214,8 @@ body{font-family:'Space Grotesk',sans-serif;background:var(--bg0);color:var(--t1
 																																																					// Roblox bloquea peticiones del navegador. Usamos proxies como intermediario.
 																																																					var PROXIES = [
 																																																					{name:'allorigins', url:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)},
-																																																					{name:'cors-proxy-bypass', url:u=>'https://corsproxy.io/?'+encodeURIComponent(u)},
-																																																					{name:'codetabs', url:u=>'https://api.codetabs.com/v1/proxy?url='+encodeURIComponent(u)}
+																																																					{name:'cors.isomorphic', url:u=>'https://cors.isomorphic-git.org/'+u},
+																																																					{name:'thingproxy', url:u=>'https://thingproxy.freeboard.io/fetch/'+u}
 																																																					];
 
 																																																					async function pFetch(target, logBox) {
