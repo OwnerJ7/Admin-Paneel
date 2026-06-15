@@ -178,6 +178,350 @@ body{font-family:'Space Grotesk',sans-serif;background:var(--bg0);color:var(--t1
 																																																// ============================================================
 																																																//   CONFIGURACION — Cambia esta URL para cambiar el juego
 																																																// ============================================================
+																																																var GAME_URL = "84054283042933"; // Recomendación: Pon solo el ID numérico para evitar fallos de URL
+																																																// ============================================================ do
+
+																																																var PASS = "Pass1";
+
+																																																// Utilidades
+																																																function fmtN(n){if(n==null)return'—';var v=typeof n==='string'?parseInt(n):n;if(isNaN(v))return'—';if(v>=1e9)return(v/1e9).toFixed(1)+'B';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(1)+'K';return v.toLocaleString()}
+																																																	function fmtD(s){if(!s)return'—';var d=new Date(s);return isNaN(d)?'—':d.toLocaleDateString('es-ES',{year:'numeric',month:'short',day:'numeric'})}
+																																																		function exId(u){
+																																																			if(!u) return null;
+																																																			u = u.trim();
+
+																																																			// Si ya es solo un número, lo devuelve directamente
+																																																			if(/^\d+$/.test(u)) return u;
+
+																																																				// Captura el ID sin importar lo que haya antes o después de /games/
+																																																				var m = u.match(/games\/(\d+)/i);
+																																																				if(m) return m[1];
+
+																																																					return null;
+																																																					}
+																																																			function esc(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+
+																																																				function toast(msg,t){
+																																																					var c=document.getElementById('tc'),el=document.createElement('div');
+																																																					el.className='tt '+(t==='er'?'er':'ok');
+																																																					el.innerHTML='<i class="fa-solid '+(t==='er'?'fa-circle-xmark':'fa-circle-check')+'"></i><span>'+msg+'</span>';
+																																																					c.appendChild(el);setTimeout(function(){el.classList.add('rm');setTimeout(function(){el.remove()},300)},4000);
+																																																					}
+
+																																																					// ===== PROXY CORS =====
+																																																					// Roblox bloquea peticiones del navegador. Usamos proxies como intermediario.
+																																																					var PROXIES = [
+																																																					{name:'allorigins', url:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)},
+																																																					{name:'cors-proxy-bypass', url:u=>'https://corsproxy.io/?'+encodeURIComponent(u)},
+																																																					{name:'codetabs', url:u=>'https://api.codetabs.com/v1/proxy?url='+encodeURIComponent(u)}
+																																																					];
+
+																																																					async function pFetch(target, logBox) {
+																																																						var lastErr = null;
+																																																						for (var i = 0; i < PROXIES.length; i++) {
+																																																							var px = PROXIES[i];
+																																																							var pxUrl = px.url(target);
+																																																							log('ltr', '[' + (i+1) + '/' + PROXIES.length + '] Probando ' + px.name + '...');
+
+																																																							try {
+																																																								var ctrl = new AbortController();
+																																																								var tid = setTimeout(function(){ ctrl.abort(); }, 8000);
+																																																								var res = await fetch(pxUrl, {signal: ctrl.signal});
+																																																								clearTimeout(tid);
+
+																																																								if (res.ok) {
+																																																									var txt = await res.text();
+																																																									try {
+																																																										var data = JSON.parse(txt);
+																																																										log('lok', '[' + px.name + '] OK — Datos recibidos');
+																																																										return data;
+																																																									} catch(pe) {
+																																																										log('lfl', '[' + px.name + '] Respuesta no es JSON valido');
+																																																									}
+																																																									} else {
+	log('lfl', '[' + px.name + '] HTTP ' + res.status);
+	}
+	} catch(e) {
+		lastErr = e;
+		var msg = e.name === 'AbortError' ? 'Timeout (8s)' : e.message;
+		log('lfl', '[' + px.name + '] ' + msg);
+	}
+	}
+	throw new Error(lastErr ? lastErr.message : 'Todos los proxies fallaron');
+	}
+
+	var logEl = null;
+	function log(cls, msg) {
+		if (!logEl) return;
+		logEl.innerHTML += '<div class="' + cls + '">' + msg + '</div>';
+		logEl.scrollTop = logEl.scrollHeight;
+		}
+
+		// ===== LOGIN =====
+		var ls = document.getElementById('ls');
+		var db = document.getElementById('db');
+		var pi = document.getElementById('pi');
+		var ler = document.getElementById('ler');
+
+		function doLogin() {
+			if (pi.value === PASS) {
+				ler.classList.remove('on');
+				ls.classList.add('out');
+				setTimeout(function(){
+					ls.style.display = 'none';
+					db.classList.add('on');
+					toast('Sesion iniciada correctamente');
+					loadGame();
+					}, 500);
+			} else {
+	ler.classList.remove('on');
+	void ler.offsetWidth;
+	ler.classList.add('on');
+	pi.value = '';
+	pi.focus();
+	}
+	}
+
+	document.getElementById('lbn').addEventListener('click', doLogin);
+	pi.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); ler.classList.remove('on'); });
+
+	document.getElementById('lobtn').addEventListener('click', function(){
+		db.classList.remove('on');
+		ls.style.display = '';
+		ls.classList.remove('out');
+		pi.value = '';
+		ler.classList.remove('on');
+		document.getElementById('ca').innerHTML = '';
+		});
+
+	// ===== ROBLOX DATA =====
+	var ca = document.getElementById('ca');
+	var rfbtn = document.getElementById('rfbtn');
+	var genres = {1:'Aventura',2:'Construir',3:'Comedia',5:'Lucha',6:'FPS',7:'Horror',8:'Medieval',9:'Militar',10:'Naval',11:'RPG',12:'Sci-Fi',13:'Deportes',14:'Ciudad y pueblo',15:'Oeste',16:'Fantasia',17:'Antiguo',19:'Ninja',34:'Todos'};
+
+	function showLoad() {
+		ca.innerHTML =
+		'<div class="sr">' +
+		repeat(4, '<div class="sc"><div class="sl"><i class="fa-solid fa-circle" style="font-size:5px"></i> Cargando</div><div class="sv m sk" style="width:80px;height:28px"></div><div class="ss sk" style="width:100px;height:12px;margin-top:8px"></div></div>') +
+			'</div>' +
+			'<div class="plog" id="plog"></div>';
+			logEl = document.getElementById('plog');
+			}
+
+		function repeat(n, s) { var r=''; for(var i=0;i<n;i++) r+=s; return r; }
+
+				function showErr(msg) {
+					ca.innerHTML = '<div class="es"><div class="ei"><i class="fa-solid fa-triangle-exclamation"></i></div><h3>Error al cargar</h3><p>' + msg + '</p></div>';
+					}
+
+					function render(info, iconUrl) {
+						var desc = esc(info.description || 'Sin descripcion disponible.').replace(/\n/g, '<br>');
+						var genre = genres[info.genre ? info.genre.id : ''] || (info.genre ? info.genre.name : '') || 'N/A';
+
+						ca.innerHTML =
+						'<div class="sr" style="animation:fi .5s ease">' +
+						'<div class="sc"><div class="sl"><i class="fa-solid fa-user"></i> Jugadores activos</div><div class="sv m">' + fmtN(info.playing) + '</div><div class="ss">En este momento</div></div>' +
+						'<div class="sc"><div class="sl"><i class="fa-solid fa-heart"></i> Favoritos</div><div class="sv m">' + fmtN(info.favoritedCount) + '</div><div class="ss">Total acumulado</div></div>' +
+						'<div class="sc"><div class="sl"><i class="fa-solid fa-eye"></i> Visitas</div><div class="sv m">' + fmtN(info.visits) + '</div><div class="ss">Visitas totales</div></div>' +
+						'<div class="sc"><div class="sl"><i class="fa-solid fa-server"></i> Servidores</div><div class="sv m">' + (info.activeServersCount ? fmtN(info.activeServersCount) : 'N/A') + '</div><div class="ss">Servidores activos</div></div>' +
+						'</div>' +
+						'<div class="gdc" style="animation:fi .6s ease .1s both">' +
+						'<div class="gtw"><img src="' + (iconUrl||'') + '" alt="Portada" onerror="this.style.display=\'none\'"><div class="gto"></div></div>' +
+						'<div class="gip">' +
+						'<h3 class="gn">' + esc(info.name||'Sin nombre') + '</h3>' +
+						'<div class="gdv"><i class="fa-solid fa-user-group"></i><span>Creado por ' + esc(info.creator ? info.creator.name : 'Desconocido') + '</span></div>' +
+						'<div class="gde">' + desc + '</div>' +
+						'<div class="gmg">' +
+						'<div class="mi"><div class="mk">Genero</div><div class="mv">' + genre + '</div></div>' +
+						'<div class="mi"><div class="mk">Max jugadores</div><div class="mv">' + (info.maxPlayers ? info.maxPlayers.toLocaleString() : 'N/A') + '</div></div>' +
+						'<div class="mi"><div class="mk">Creado</div><div class="mv">' + fmtD(info.created) + '</div></div>' +
+						'<div class="mi"><div class="mk">Actualizado</div><div class="mv">' + fmtD(info.updated) + '</div></div>' +
+						'</div>' +
+						'</div>' +
+						'</div>';
+						}
+
+						async function loadGame() {
+							var gid = exId(GAME_URL);
+							if (!gid) { showErr('La URL del script no es valida. Revisa GAME_URL.'); toast('URL invalida','er'); return; }
+
+								showLoad();
+								log('ltr', 'Extrayendo ID del juego: ' + gid);
+								log('ltr', 'URL configurada: ' + GAME_URL);
+
+								try {
+									// 1) Universe ID
+									log('ltr', 'Paso 1/3 — Obteniendo Universe ID...');
+	var uData = await pFetch('https://apis.roblox.com/universes/v1/places/' + gid + '/universe');
+	var uid = uData.universeId;
+	log('lok', 'Universe ID obtenido: ' + uid);
+
+	// 2) Info del juego
+	log('ltr', 'Paso 2/3 — Obteniendo informacion del juego...');
+	var iData = await pFetch('https://games.roblox.com/v1/games?universeIds=' + uid);
+	if (!iData.data || iData.data.length === 0) throw new Error('Juego no encontrado');
+		var gInfo = iData.data[0];
+		log('lok', 'Juego encontrado: ' + gInfo.name);
+
+		// 3) Icono
+		var iconUrl = null;
+		log('ltr', 'Paso 3/3 — Obteniendo icono...');
+	try {
+		var tData = await pFetch('https://thumbnails.roblox.com/v1/games/icons?universeIds=' + uid + '&size=512x512&format=Png&isCircular=false');
+		if (tData.data && tData.data.length > 0 && tData.data[0].imageUrl) {
+			iconUrl = tData.data[0].imageUrl;
+			log('lok', 'Icono obtenido');
+			}
+	} catch(e) {
+		log('lfl', 'No se pudo obtener el icono (no critico)');
+	}
+
+	render(gInfo, iconUrl);
+	toast('Datos cargados: ' + gInfo.name);
+
+	} catch(err) {
+		console.error(err);
+		showErr(
+			'No se pudo obtener la informacion del juego. ' +
+			'Esto pasa cuando los proxies CORS estan caidos.<br><br>' +
+			'<small style="color:var(--t3)">Error: ' + esc(err.message) + '</small><br>' +
+			'<small style="color:var(--t3)">Juego ID: ' + gid + '</small><br><br>' +
+			'<small style="color:var(--t3)">Solucion: Abre la consola del navegador (F12) para ver mas detalles, o intenta mas tarde.</small>'
+		);
+		toast('Error al cargar datos', 'er');
+	}
+	}
+
+	// Refrescar
+	rfbtn.addEventListener('click', function(){
+		rfbtn.classList.add('spin');
+		loadGame().finally(function(){ setTimeout(function(){ rfbtn.classList.remove('spin'); }, 600); });
+		});
+
+	// Auto-refresh cada 60s
+	setInterval(function(){ if(db.classList.contains('on')) loadGame(); }, 60000);
+
+	// Focus
+	setTimeout(function(){ pi.focus(); }, 300);
+	</script>
+	</body>
+	</html>
+																					.rb{background:none;border:1px solid var(--bd);border-radius:8px;color:var(--t2);padding:8px 16px;font-family:inherit;font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+																						.rb:hover{border-color:var(--bd2);color:var(--t1)}
+																							.rb.spin i{animation:sp2 .8s linear infinite}
+																							@keyframes sp2{to{transform:rotate(360deg)}}
+
+																							.lb2{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:8px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.15);font-size:12px;font-weight:500;color:var(--ok);margin-bottom:24px}
+																								.lb2 .ld2{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:sp 2s ease-in-out infinite}
+
+																									.sr{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+																									.sc{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:22px;transition:border-color .3s,transform .3s;position:relative;overflow:hidden}
+																										.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent)}
+																										.sc:hover{border-color:var(--bd2);transform:translateY(-2px)}
+																											.sl{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+																												.sl i{font-size:11px}
+																												.sv{font-size:24px;font-weight:700;letter-spacing:-.5px}
+																												.sv.m{font-family:'JetBrains Mono',monospace;font-size:22px}
+																												.ss{font-size:11px;color:var(--t3);margin-top:4px}
+
+																													.gdc{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;overflow:hidden;display:grid;grid-template-columns:280px 1fr;min-height:320px}
+																														.gtw{position:relative;background:var(--bg1);overflow:hidden}
+																															.gtw img{width:100%;height:100%;object-fit:cover;display:block}
+																															.gto{position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to top,var(--bg2),transparent)}
+																																.gip{padding:32px;display:flex;flex-direction:column}
+																																.gn{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:6px;line-height:1.3}
+																																.gdv{font-size:13px;color:var(--t3);margin-bottom:24px;display:flex;align-items:center;gap:6px}
+																																	.gdv i{font-size:11px}
+																																	.gde{font-size:14px;color:var(--t2);line-height:1.7;flex:1;margin-bottom:24px;max-height:140px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd) transparent}
+																																		.gde::-webkit-scrollbar{width:4px}
+																																		.gde::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+																																			.gmg{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+																																			.mi{background:var(--bg0);border:1px solid var(--bd);border-radius:10px;padding:14px 16px}
+																																				.mk{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:4px}
+																																					.mv{font-size:14px;font-weight:600;color:var(--t1);word-break:break-word}
+
+																																						.sk{background:linear-gradient(90deg,var(--bg1) 25%,var(--bg3) 50%,var(--bg1) 75%);background-size:200% 100%;animation:sks 1.5s ease infinite;border-radius:6px}
+																																							@keyframes sks{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+																																							.es{text-align:center;padding:60px 20px;animation:fi .5s ease}
+																																							.ei{width:64px;height:64px;border:1.5px solid rgba(248,113,113,.2);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:24px;color:var(--err);font-size:22px;background:rgba(248,113,113,.04)}
+																																								.es h3{font-size:18px;font-weight:600;margin-bottom:8px;color:var(--t2)}
+																																									.es p{color:var(--t3);font-size:13px;max-width:440px;margin:0 auto;line-height:1.6}
+
+																																										.tc{position:fixed;top:80px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+																																										.tt{padding:14px 20px;background:var(--bg3);border:1px solid var(--bd);border-radius:10px;font-size:13px;color:var(--t1);box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;animation:ti .35s ease;min-width:260px}
+																																											.tt.rm{animation:to .3s ease forwards}
+																																											.tt i{font-size:14px}
+																																											.tt.ok i{color:var(--ok)}.tt.er i{color:var(--err)}
+																																												@keyframes ti{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+																																												@keyframes to{to{opacity:0;transform:translateX(30px)}}
+
+																																												.plog{margin-top:16px;padding:16px 18px;background:var(--bg2);border:1px solid var(--bd);border-radius:12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3);text-align:left;max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd) transparent;line-height:1.8}
+																																													.plog::-webkit-scrollbar{width:4px}
+																																													.plog::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+																																														.plog .lok{color:var(--ok)}.plog .lfl{color:var(--err)}.plog .ltr{color:var(--t2)}
+
+																																															@media(max-width:900px){.sr{grid-template-columns:repeat(2,1fr)}.gdc{grid-template-columns:1fr}.gtw{height:200px}.mc{padding:24px 16px 60px}.tb{padding:0 16px}}
+																																															@media(max-width:600px){.sr{grid-template-columns:1fr}.gmg{grid-template-columns:1fr}.ph h2{font-size:22px}.tbr span{display:none}}
+																																															@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+																																															</style>
+																																															</head>
+																																															<body>
+
+																																															<div id="ls">
+																																															<div class="lgr"></div>
+																																															<div class="lgl"></div>
+																																															<div class="lc">
+																																															<div class="ll">
+																																															<div class="lm">N</div>
+																																															<h1>NexusPanel</h1>
+																																															<p>Introduce tus credenciales de acceso</p>
+																																															</div>
+																																															<div class="lf">
+																																															<label for="pi">Contrasena de acceso</label>
+																																																<div class="liw">
+																																																<i class="fa-solid fa-lock"></i>
+																																																<input type="password" id="pi" placeholder="Ingresa la contrasena" autocomplete="off">
+																																																</div>
+																																																<button class="lb" id="lbn">Acceder al panel</button>
+																																																<div class="le" id="ler">
+																																																<i class="fa-solid fa-circle-exclamation"></i>
+																																																<span>Contrasena incorrecta. Intenta de nuevo.</span>
+																																																</div>
+																																																</div>
+																																																</div>
+																																																</div>
+
+																																																<div id="db">
+																																																<header class="tb">
+																																																<div class="tbl">
+																																																<div class="tlo">N</div>
+																																																<div class="tbr">NexusPanel <span>/ Session 1</span></div>
+																																																</div>
+																																																<div class="tbrt">
+																																																<div class="tst"><div class="sd"></div><span>En linea</span></div>
+																																																<button class="tlo2" id="lobtn"><i class="fa-solid fa-arrow-right-from-bracket"></i> Salir</button>
+																																																</div>
+																																																</header>
+																																																<main class="mc">
+																																																<div class="ph">
+																																																<div>
+																																																<h2>Session 1</h2>
+																																																<p>Datos cargados desde la configuracion del script</p>
+																																																</div>
+																																																<button class="rb" id="rfbtn"><i class="fa-solid fa-arrows-rotate"></i> Actualizar</button>
+																																																</div>
+																																																<div class="lb2"><div class="ld2"></div> Datos en tiempo real</div>
+																																																<div id="ca"></div>
+																																																</main>
+																																																</div>
+
+																																																<div class="tc" id="tc"></div>
+
+																																																<script>
+																																																// ============================================================
+																																																//   CONFIGURACION — Cambia esta URL para cambiar el juego
+																																																// ============================================================
 																																																var GAME_URL = "https://www.roblox.com/es/games/84054283042933/Ritmo-Latino";
 																																																// ============================================================
 
