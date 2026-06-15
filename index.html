@@ -212,35 +212,48 @@ body{font-family:'Space Grotesk',sans-serif;background:var(--bg0);color:var(--t1
 
 																																																					// ===== PROXY CORS =====
 																																																					// Roblox bloquea peticiones del navegador. Usamos proxies como intermediario.
+																																																					// ===== PROXY CORS OPTIMIZADO =====
 																																																					var PROXIES = [
-																																																					{name:'allorigins', url:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)},
-																																																					{name:'cors.isomorphic', url:u=>'https://cors.isomorphic-git.org/'+u},
-																																																					{name:'thingproxy', url:u=>'https://thingproxy.freeboard.io/fetch/'+u}
+																																																					{
+																																																						name: 'cors-anywhere-alternative', 
+																																																						url: u => 'https://cors-anywhere.herokuapp.com/' + u
+																																																					},
+																																																					{
+																																																						name: 'allorigins-fixed', 
+																																																						url: u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u)
+																																																					},
+																																																					{
+																																																						name: 'allorigins-raw', 
+																																																						url: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u)
+																																																					}
 																																																					];
 
-																																																					async function pFetch(target, logBox) {
-																																																						var lastErr = null;
-																																																						for (var i = 0; i < PROXIES.length; i++) {
-																																																							var px = PROXIES[i];
-																																																							var pxUrl = px.url(target);
-																																																							log('ltr', '[' + (i+1) + '/' + PROXIES.length + '] Probando ' + px.name + '...');
+																																																					// Reemplaza el bloque try dentro de tu bucle pFetch por este:
+																																																					try {
+																																																						var ctrl = new AbortController();
+																																																						var tid = setTimeout(function(){ ctrl.abort(); }, 8000);
+																																																						var res = await fetch(pxUrl, {signal: ctrl.signal});
+																																																						clearTimeout(tid);
 
+																																																						if (res.ok) {
+																																																							var txt = await res.text();
 																																																							try {
-																																																								var ctrl = new AbortController();
-																																																								var tid = setTimeout(function(){ ctrl.abort(); }, 8000);
-																																																								var res = await fetch(pxUrl, {signal: ctrl.signal});
-																																																								clearTimeout(tid);
-
-																																																								if (res.ok) {
-																																																									var txt = await res.text();
-																																																									try {
-																																																										var data = JSON.parse(txt);
-																																																										log('lok', '[' + px.name + '] OK — Datos recibidos');
-																																																										return data;
-																																																									} catch(pe) {
-																																																										log('lfl', '[' + px.name + '] Respuesta no es JSON valido');
+																																																								var data = JSON.parse(txt);
+																																																								// Si el proxy es el de AllOrigins normal, extraemos el contenido interno
+																																																								if (data.contents) {
+																																																									data = JSON.parse(data.contents);
 																																																									}
-																																																									} else {
+																																																									log('lok', '[' + px.name + '] OK — Datos recibidos');
+																																																									return data;
+																																																							} catch(pe) {
+																																																								log('lfl', '[' + px.name + '] Respuesta no es JSON valido');
+																																																							}
+																																																							} else {
+	log('lfl', '[' + px.name + '] HTTP ' + res.status);
+	}
+	} catch(e) {
+		// ... tu código de manejo de errores actual
+	}
 	log('lfl', '[' + px.name + '] HTTP ' + res.status);
 	}
 	} catch(e) {
